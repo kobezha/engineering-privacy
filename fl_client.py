@@ -7,29 +7,40 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 
+def split_dataset(X, y):
+    X_train, X_test, y_train , y_test = train_test_split(X,y, test_size=0.2, random_state=0)
+    scaler =StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+    return X_train, X_test, y_train, y_test
+
 # Load and preprocess the dataset
 def load_data(partition_index, num_partitions):
     # Load dataset
-    url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv"
+    #URL to get the dataset from online 
+    #url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv"
+    
+    #file path for our own K-anonymized data
+    file_path = "preprocessed_data.csv"
+
     col_names = ['num_pregnant', 'glucose_concentration', 'blood_pressure', 'skin_thickness', 'serum_insulin',
                  'BMI', 'pedigree_function', 'age', 'class']
-    diabetes = pd.read_csv(url, names=col_names)
+    cat_features = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age','Outcomes']
 
-    # Clean data by replacing 0 with NaN and imputing with mean
-    diabetes[['glucose_concentration', 'blood_pressure', 'skin_thickness', 'serum_insulin', 'BMI']] = \
-        diabetes[['glucose_concentration', 'blood_pressure', 'skin_thickness', 'serum_insulin', 'BMI']].replace(0, np.nan)
-    diabetes.fillna(diabetes.mean(), inplace=True)
+    diabetes = pd.read_csv(file_path)
 
-    # Features and Targets
-    X = diabetes.drop('class', axis=1).values
-    y = diabetes['class'].values
+    #reconstruct X and y from the preprocessed_data 
+    X = diabetes.iloc[:,:-1]
+    y = diabetes.iloc[:,-1]
 
-    # Standardize features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
 
-    # Split data into partitions for federated learning
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=0)
+    #split dataset into testing and training 
+    X_train, X_test, y_train, y_test = split_dataset(X,y)
+    y_train = y_train.values
+    y_test = y_test.values
+
+
+    #further split dataset into partitions for each clinic 
     data_size = len(X_train)
     partition_size = data_size // num_partitions
     start_index = partition_index * partition_size
@@ -37,23 +48,24 @@ def load_data(partition_index, num_partitions):
 
     return X_train[start_index:end_index], X_test, y_train[start_index:end_index], y_test
 
-# Parse command line arguments
-partition_index = int(sys.argv[1]) - 1  # Client index (1-based index to 0-based index conversion)
-num_partitions = int(sys.argv[2])       # Total number of clients
+# Parse command line arguments, Client id and total number of clients 
+partition_index = int(sys.argv[1]) - 1  
+num_partitions = int(sys.argv[2])       
 
 # Load partitioned data
 x_train, x_test, y_train, y_test = load_data(partition_index, num_partitions)
 
-# Define and compile Keras model
+# Define and compile Keras model (local model from Zuofei)
 model = keras.Sequential([
-    keras.layers.Dense(12, input_dim=8, activation='relu'),
+    keras.layers.Dense(256, activation='relu'),
+    keras.layers.Dense(64, activation='relu'),
     keras.layers.Dense(8, activation='relu'),
-    keras.layers.Dense(1, activation='sigmoid')
+    keras.layers.Dense(1, activation='sigmoid'),
 ])
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-# Define Flower client
-class DiabetesClient(fl.client.NumPyClient):
+# Define Clinic as a Flower client
+class Clinic(fl.client.NumPyClient):
     def get_parameters(self, config):
         return model.get_weights()
 
@@ -71,7 +83,7 @@ class DiabetesClient(fl.client.NumPyClient):
 
 # Start Flower client
 fl.client.start_client(
-    server_address="localhost:8080",  # Server's IP address and port (replace 'localhost' if needed)
-    client=DiabetesClient().to_client(),
+    server_address="localhost:8080",  
+    client=Clinic().to_client(),
     grpc_max_message_length=1024 * 1024 * 1024
 )
