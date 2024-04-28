@@ -8,7 +8,11 @@ The primary tool used for implementing federated learning is the [Flower Framewo
 The dataset used for this project is the Pima Indians Diabetes Database, originally from the National Institute of Diabetes and Digestive and Kidney Diseases. It can be found [here](https://www.kaggle.com/datasets/uciml/pima-indians-diabetes-database). All patients within the dataset are females at least 21 years old of Pima Indian heritage. The purpose of the dataset is to predict whether or not a patient has diabetes based on diagnostic measurements. These 8 predictor variables include the number of pregnancies the patient has had, plasma glucose concentration, blood pressure, skin thickness, their BMI, insulin level, age, and Diabetes Pedigree Function. The target variable is a binary outcome indicating if the patient has diabetes or not. Within this dataset, we considered the outcome variable as being sensitive.
 
 # How to setup and run the project
-To setup and run the project, first clone the repo. Then run the server script and client script in separate terminals. The client scripts need two inputs: the first is a client ID and the second is the total number of clients. If you have 2 clients, run:
+To setup and run the project, first clone the repo. 
+
+Start with running k-anonymity. To do this, run the replace_missing_values.ipynb script, then follow with k_discovery.ipynb, then k-anonymity.ipynb.
+
+Then run the server script and client script in separate terminals. The client scripts need two inputs: the first is a client ID and the second is the total number of clients. If you have 2 clients, run:
 
 `python3 f1_client.py 1 2`
 
